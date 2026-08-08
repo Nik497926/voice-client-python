@@ -1,0 +1,42 @@
+[project]
+name = "voice-client"
+version = "0.1.0"
+description = "Python SDK for the Voice bot API (gRPC + SignalR gateway)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Nik497926" }]
+keywords = ["voice", "bot", "grpc", "signalr"]
+dependencies = [
+    "grpcio>=1.60.0",
+    "protobuf>=4.25.0",
+    "signalrcore>=0.9.5",
+    "httpx>=0.27.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Nik497926/voice-client-python"
+Repository = "https://github.com/Nik497926/voice-client-python"
+Issues = "https://github.com/Nik497926/voice-client-python/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "grpcio-tools>=1.60.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"voice.client._generated" = ["*.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
