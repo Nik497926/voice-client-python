@@ -81,11 +81,33 @@ class SignalRBotGatewayConnection:
 
     @staticmethod
     def _normalize_payload(args) -> str:
+        """Unwrap signalrcore / SignalR invocation args into a single envelope JSON object.
+
+        Hub methods are invoked as ``SendAsync(topic, envelope)``. signalrcore often delivers that
+        as ``handler([envelope])`` or ``handler(*[envelope])``, so the first positional arg can be a
+        one-element list rather than the dict itself.
+        """
         if not args:
             return "{}"
-        payload = args[0] if len(args) == 1 else args
+        payload = args[0] if len(args) == 1 else list(args)
+        # Unwrap nested single-element lists/tuples from the hub invocation framing.
+        while isinstance(payload, (list, tuple)) and len(payload) == 1:
+            payload = payload[0]
         if isinstance(payload, str):
+            text = payload.strip()
+            if text.startswith("["):
+                try:
+                    parsed = json.loads(text)
+                except json.JSONDecodeError:
+                    return payload
+                while isinstance(parsed, list) and len(parsed) == 1:
+                    parsed = parsed[0]
+                if isinstance(parsed, dict):
+                    return json.dumps(parsed)
             return payload
+        if isinstance(payload, dict):
+            return json.dumps(payload)
+        # Unexpected shape — still serialize so the parser can return a parse_error.
         return json.dumps(payload)
 
     def _enqueue(self, topic: str, raw: str) -> None:

@@ -157,3 +157,36 @@ def test_parse_unknown_type():
 def test_parse_bad_envelope():
     result = parse_gateway_event(CHAT_EVENTS, "not-json")
     assert result["kind"] == "parse_error"
+
+
+def test_parse_list_wrapped_envelope():
+    """signalrcore often delivers hub args as a one-element JSON array."""
+    message_id = str(uuid4())
+    author_id = str(uuid4())
+    payload = {
+        "Id": message_id,
+        "ChannelId": str(uuid4()),
+        "Author": _author(author_id, "user", False),
+        "Content": "hi",
+        "CreatedAt": datetime.now(timezone.utc).isoformat(),
+        "UpdatedAt": datetime.now(timezone.utc).isoformat(),
+        "IsEdited": False,
+        "IsDeleted": False,
+        "ReplyTo": None,
+        "Attachments": [],
+        "Reactions": {},
+    }
+    wrapped = json.dumps([json.loads(_envelope("MessageCreated", payload))])
+    result = parse_gateway_event(CHAT_EVENTS, wrapped)
+    assert result["kind"] == "message_created"
+    assert result["message"].content == "hi"
+
+
+def test_normalize_payload_unwraps_list():
+    from voice.client.gateway import SignalRBotGatewayConnection
+
+    envelope = {"Type": "MessageCreated", "PayloadJson": "{}"}
+    raw = SignalRBotGatewayConnection._normalize_payload(([envelope],))
+    assert json.loads(raw) == envelope
+    raw2 = SignalRBotGatewayConnection._normalize_payload((envelope,))
+    assert json.loads(raw2) == envelope

@@ -189,16 +189,35 @@ def _interaction(payload: dict[str, Any]) -> BotInteractionEvent:
     )
 
 
+def _unwrap_envelope(value: Any) -> Any:
+    """Accept a bare object or SignalR one-arg invocation wrapped as ``[object]``."""
+    while isinstance(value, list) and len(value) == 1:
+        value = value[0]
+    return value
+
+
 def parse_gateway_event(topic: str, raw: str) -> dict[str, Any]:
     try:
-        envelope = json.loads(raw)
+        envelope = _unwrap_envelope(json.loads(raw))
     except Exception as ex:  # noqa: BLE001
         return {"kind": "parse_error", "error": ex}
+
+    if not isinstance(envelope, dict):
+        return {
+            "kind": "parse_error",
+            "error": TypeError(f"Gateway envelope must be an object, got {type(envelope).__name__}"),
+        }
 
     etype = str(envelope.get("Type") or envelope.get("type") or "")
     payload_json = envelope.get("PayloadJson") or envelope.get("payloadJson") or "{}"
     try:
-        payload = json.loads(payload_json) if isinstance(payload_json, str) else (payload_json or {})
+        if isinstance(payload_json, str):
+            payload = json.loads(payload_json) if payload_json else {}
+        else:
+            payload = payload_json or {}
+        payload = _unwrap_envelope(payload)
+        if not isinstance(payload, dict):
+            payload = {}
     except Exception as ex:  # noqa: BLE001
         return {"kind": "parse_error", "error": ex}
 

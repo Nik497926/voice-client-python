@@ -110,13 +110,25 @@ class BotClient:
             await self.close()
 
     def _on_gateway_message(self, topic: str, raw: str) -> None:
-        asyncio.get_event_loop().create_task(self._dispatch_gateway(topic, raw))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        loop.create_task(self._dispatch_gateway(topic, raw))
 
     def _on_gateway_error(self, error: BaseException) -> None:
-        asyncio.get_event_loop().create_task(self._emit(self.connection_error, error))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        loop.create_task(self._emit(self.connection_error, error))
 
     async def _dispatch_gateway(self, topic: str, raw: str) -> None:
-        result = parse_gateway_event(topic, raw)
+        try:
+            result = parse_gateway_event(topic, raw)
+        except Exception as ex:  # noqa: BLE001
+            await self._emit(self.connection_error, ex)
+            return
         kind = result.get("kind")
         if kind == "parse_error":
             await self._emit(self.connection_error, result["error"])
